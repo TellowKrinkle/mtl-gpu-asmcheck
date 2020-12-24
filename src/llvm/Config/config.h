@@ -212,7 +212,7 @@
 #define HAVE_TERMINFO 1
 
 /* Define if the xar_open() function is supported this platform. */
-#define HAVE_LIBXAR 1
+// #define HAVE_LIBXAR 0
 
 /* Define to 1 if you have the <termios.h> header file. */
 #define HAVE_TERMIOS_H 1

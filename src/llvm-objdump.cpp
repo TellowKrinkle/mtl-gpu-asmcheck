@@ -883,7 +883,9 @@ class SourcePrinter {
 protected:
   DILineInfo OldLineInfo;
   const ObjectFile *Obj = nullptr;
+#if 0
   std::unique_ptr<symbolize::LLVMSymbolizer> Symbolizer;
+#endif
   // File name to file contents of source
   std::unordered_map<std::string, std::unique_ptr<MemoryBuffer>> SourceCache;
   // Mark the line endings of the cached source
@@ -895,10 +897,12 @@ private:
 public:
   SourcePrinter() = default;
   SourcePrinter(const ObjectFile *Obj, StringRef DefaultArch) : Obj(Obj) {
+#if 0
     symbolize::LLVMSymbolizer::Options SymbolizerOpts(
         DILineInfoSpecifier::FunctionNameKind::None, true, false, false,
         DefaultArch);
     Symbolizer.reset(new symbolize::LLVMSymbolizer(SymbolizerOpts));
+#endif
   }
   virtual ~SourcePrinter() = default;
   virtual void printSourceLine(raw_ostream &OS, uint64_t Address,
@@ -933,6 +937,8 @@ bool SourcePrinter::cacheSource(const DILineInfo &LineInfo) {
 
 void SourcePrinter::printSourceLine(raw_ostream &OS, uint64_t Address,
                                     StringRef Delimiter) {
+  return;
+#if 0
   if (!Symbolizer)
     return;
   DILineInfo LineInfo = DILineInfo();
@@ -966,6 +972,7 @@ void SourcePrinter::printSourceLine(raw_ostream &OS, uint64_t Address,
     }
   }
   OldLineInfo = LineInfo;
+#endif
 }
 
 static bool isArmElf(const ObjectFile *Obj) {
@@ -1528,6 +1535,7 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
         outs() << '\n' << Name << ":\n";
       };
       StringRef SymbolName = std::get<1>(Symbols[si]);
+#if 0
       if (Demangle.getValue() == "" || Demangle.getValue() == "itanium") {
         char *DemangledSymbol = nullptr;
         size_t Size = 0;
@@ -1542,6 +1550,7 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
         if (Size != 0)
           free(DemangledSymbol);
       } else
+#endif
         PrintSymbol(SymbolName);
 
       // Don't print raw contents of a virtual section. A virtual section
@@ -2145,11 +2154,12 @@ static void printFaultMaps(const ObjectFile *Obj) {
 
   StringRef FaultMapContents;
   error(FaultMapSection.getValue().getContents(FaultMapContents));
-
+#if 0
   FaultMapParser FMP(FaultMapContents.bytes_begin(),
                      FaultMapContents.bytes_end());
 
   outs() << FMP;
+#endif
 }
 
 static void printPrivateFileHeaders(const ObjectFile *o, bool onlyFirst) {
@@ -2295,6 +2305,7 @@ static void DumpObject(ObjectFile *o, const Archive *a = nullptr,
     printRawClangAST(o);
   if (PrintFaultMaps)
     printFaultMaps(o);
+#if 0
   if (DwarfDumpType != DIDT_Null) {
     std::unique_ptr<DIContext> DICtx = DWARFContext::create(*o);
     // Dump the complete DWARF structure.
@@ -2302,6 +2313,7 @@ static void DumpObject(ObjectFile *o, const Archive *a = nullptr,
     DumpOpts.DumpType = DwarfDumpType;
     DICtx->dump(outs(), DumpOpts);
   }
+#endif
 }
 
 static void DumpObject(const COFFImportFile *I, const Archive *A,
