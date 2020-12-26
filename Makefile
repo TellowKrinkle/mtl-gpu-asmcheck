@@ -2,7 +2,7 @@ CXX ?= clang++
 CXXFLAGS += -fno-rtti -fno-exceptions -Iinclude -Isrc -std=c++14
 LDFLAGS += -Llib -lLLVM
 
-mtl-gpu-objdump: src/COFFDump.cpp.o src/ELFDump.cpp.o src/llvm-objdump.cpp.o src/MachODump.cpp.o src/WasmDump.cpp.o src/MachOObjectFile.cpp.o
+mtl-gpu-objdump: src/llvm-objdump/COFFDump.cpp.o src/llvm-objdump/ELFDump.cpp.o src/llvm-objdump/llvm-objdump.cpp.o src/llvm-objdump/MachODump.cpp.o src/llvm-objdump/WasmDump.cpp.o src/llvm-objdump/MachOObjectFile.cpp.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 %.cpp.o: %.cpp
