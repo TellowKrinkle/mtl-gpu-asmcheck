@@ -13,13 +13,16 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Support/CommandLine.h"
+static bool resetCommandLineParser = (static_cast<void>(llvm::cl::ResetCommandLineParser()), true);
+
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/CodeGen/CommandFlags.inc"
-#include "llvm/CodeGen/LinkAllAsmWriterComponents.h"
-#include "llvm/CodeGen/LinkAllCodegenComponents.h"
-#include "llvm/CodeGen/MIRParser/MIRParser.h"
+//#include "llvm/CodeGen/LinkAllAsmWriterComponents.h"
+//#include "llvm/CodeGen/LinkAllCodegenComponents.h"
+//#include "llvm/CodeGen/MIRParser/MIRParser.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
@@ -36,7 +39,6 @@
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/MC/SubtargetFeature.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FormattedStream.h"
@@ -291,20 +293,20 @@ int main(int argc, char **argv) {
   // -print-before, and -stop-after options work.
   PassRegistry *Registry = PassRegistry::getPassRegistry();
   initializeCore(*Registry);
-  initializeCodeGen(*Registry);
+//  initializeCodeGen(*Registry);
   initializeLoopStrengthReducePass(*Registry);
-  initializeLowerIntrinsicsPass(*Registry);
+//  initializeLowerIntrinsicsPass(*Registry);
   initializeEntryExitInstrumenterPass(*Registry);
   initializePostInlineEntryExitInstrumenterPass(*Registry);
-  initializeUnreachableBlockElimLegacyPassPass(*Registry);
+//  initializeUnreachableBlockElimLegacyPassPass(*Registry);
   initializeConstantHoistingLegacyPassPass(*Registry);
   initializeScalarOpts(*Registry);
   initializeVectorization(*Registry);
-  initializeScalarizeMaskedMemIntrinPass(*Registry);
-  initializeExpandReductionsPass(*Registry);
+//  initializeScalarizeMaskedMemIntrinPass(*Registry);
+//  initializeExpandReductionsPass(*Registry);
 
   // Initialize debugging passes.
-  initializeScavengerTestPass(*Registry);
+//  initializeScavengerTestPass(*Registry);
 
   // Register the target printer for --version.
   cl::AddExtraVersionPrinter(TargetRegistry::printRegisteredTargetsForVersion);
@@ -379,7 +381,7 @@ static bool addPass(PassManagerBase &PM, const char *argv0,
   }
   std::string Banner = std::string("After ") + std::string(P->getPassName());
   PM.add(P);
-  TPC.printAndVerify(Banner);
+//  TPC.printAndVerify(Banner);
 
   return false;
 }
@@ -388,7 +390,7 @@ static int compileModule(char **argv, LLVMContext &Context) {
   // Load the module to be compiled...
   SMDiagnostic Err;
   std::unique_ptr<Module> M;
-  std::unique_ptr<MIRParser> MIR;
+//  std::unique_ptr<MIRParser> MIR;
   Triple TheTriple;
 
   bool SkipModule = MCPU == "help" ||
@@ -396,12 +398,12 @@ static int compileModule(char **argv, LLVMContext &Context) {
 
   // If user just wants to list available options, skip module loading
   if (!SkipModule) {
-    if (InputLanguage == "mir" ||
-        (InputLanguage == "" && StringRef(InputFilename).endswith(".mir"))) {
-      MIR = createMIRParserFromFile(InputFilename, Err, Context);
-      if (MIR)
-        M = MIR->parseIRModule();
-    } else
+//    if (InputLanguage == "mir" ||
+//        (InputLanguage == "" && StringRef(InputFilename).endswith(".mir"))) {
+//      MIR = createMIRParserFromFile(InputFilename, Err, Context);
+//      if (MIR)
+//        M = MIR->parseIRModule();
+//    } else
       M = parseIRFile(InputFilename, Err, Context, false);
     if (!M) {
       Err.print(argv[0], WithColor::error(errs(), argv[0]));
@@ -535,49 +537,49 @@ static int compileModule(char **argv, LLVMContext &Context) {
 
     const char *argv0 = argv[0];
     LLVMTargetMachine &LLVMTM = static_cast<LLVMTargetMachine&>(*Target);
-    MachineModuleInfo *MMI = new MachineModuleInfo(&LLVMTM);
+//    MachineModuleInfo *MMI = new MachineModuleInfo(&LLVMTM);
 
     // Construct a custom pass pipeline that starts after instruction
     // selection.
     if (!RunPassNames->empty()) {
-      if (!MIR) {
+//      if (!MIR) {
         WithColor::warning(errs(), argv[0])
             << "run-pass is for .mir file only.\n";
         return 1;
-      }
-      TargetPassConfig &TPC = *LLVMTM.createPassConfig(PM);
-      if (TPC.hasLimitedCodeGenPipeline()) {
-        WithColor::warning(errs(), argv[0])
-            << "run-pass cannot be used with "
-            << TPC.getLimitedCodeGenPipelineReason(" and ") << ".\n";
-        return 1;
-      }
-
-      TPC.setDisableVerify(NoVerify);
-      PM.add(&TPC);
-      PM.add(MMI);
-      TPC.printAndVerify("");
-      for (const std::string &RunPassName : *RunPassNames) {
-        if (addPass(PM, argv0, RunPassName, TPC))
-          return 1;
-      }
-      TPC.setInitialized();
-      PM.add(createPrintMIRPass(*OS));
-      PM.add(createFreeMachineFunctionPass());
+//      }
+//      TargetPassConfig &TPC = *LLVMTM.createPassConfig(PM);
+//      if (TPC.hasLimitedCodeGenPipeline()) {
+//        WithColor::warning(errs(), argv[0])
+//            << "run-pass cannot be used with "
+//            << TPC.getLimitedCodeGenPipelineReason(" and ") << ".\n";
+//        return 1;
+//      }
+//
+////      TPC.setDisableVerify(NoVerify);
+//      PM.add(&TPC);
+//      PM.add(MMI);
+////      TPC.printAndVerify("");
+//      for (const std::string &RunPassName : *RunPassNames) {
+//        if (addPass(PM, argv0, RunPassName, TPC))
+//          return 1;
+//      }
+//      TPC.setInitialized();
+//      PM.add(createPrintMIRPass(*OS));
+//      PM.add(createFreeMachineFunctionPass());
     } else if (Target->addPassesToEmitFile(PM, *OS,
                                            DwoOut ? &DwoOut->os() : nullptr,
-                                           FileType, NoVerify, MMI)) {
+                                           FileType, NoVerify/*, MMI*/)) {
       WithColor::warning(errs(), argv[0])
           << "target does not support generation of this"
           << " file type!\n";
       return 1;
     }
 
-    if (MIR) {
-      assert(MMI && "Forgot to create MMI?");
-      if (MIR->parseMachineFunctions(*M, *MMI))
-        return 1;
-    }
+//    if (MIR) {
+//      assert(MMI && "Forgot to create MMI?");
+//      if (MIR->parseMachineFunctions(*M, *MMI))
+//        return 1;
+//    }
 
     // Before executing passes, print the final values of the LLVM options.
     cl::PrintOptionValues();
