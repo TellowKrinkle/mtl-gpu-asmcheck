@@ -141,8 +141,9 @@ class CodeEmitterWrapper : public MCCodeEmitter {
 	std::unique_ptr<MCCodeEmitter> actual;
 	const MCInstrInfo& ii;
 	const MCRegisterInfo& mri;
+	MCContext& ctx;
 public:
-	CodeEmitterWrapper(std::unique_ptr<MCCodeEmitter> actual, const MCInstrInfo& ii, const MCRegisterInfo& mri): actual(std::move(actual)), ii(ii), mri(mri) {}
+	CodeEmitterWrapper(std::unique_ptr<MCCodeEmitter> actual, const MCInstrInfo& ii, const MCRegisterInfo& mri, MCContext& ctx): actual(std::move(actual)), ii(ii), mri(mri), ctx(ctx) {}
 
 	void reset() override { actual->reset(); }
 
@@ -198,7 +199,13 @@ public:
 			} else if (operand.isFPImm()) {
 				outs() << operand.getFPImm() << "f";
 			} else if (operand.isExpr()) {
-				outs() << "<Expr " << operand.getExpr() << ">";
+				if (operand.getExpr()->getKind() == MCExpr::Target) {
+					outs() << "<Target Specific Expr ";
+					operand.getExpr()->print(outs(), ctx.getAsmInfo());
+					outs() << ">";
+				} else {
+					operand.getExpr()->print(outs(), ctx.getAsmInfo());
+				}
 			} else if (operand.isInst()) {
 				outs() << "<SubInst>";
 			} else {
@@ -300,7 +307,7 @@ public:
 
 MCCodeEmitter *replacementCodeEmitterConstructor(const MCInstrInfo& II, const MCRegisterInfo& MRI, MCContext& Ctx) {
 	std::unique_ptr<MCCodeEmitter> ptr(actualCodeEmitterConstructor(II, MRI, Ctx));
-	return new CodeEmitterWrapper(std::move(ptr), II, MRI);
+	return new CodeEmitterWrapper(std::move(ptr), II, MRI, Ctx);
 }
 
 static std::unique_ptr<ToolOutputFile> GetOutputStream() {
