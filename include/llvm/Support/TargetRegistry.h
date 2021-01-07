@@ -255,11 +255,11 @@ private:
   /// MCInstPrinterCtorFn - Construction function for this target's
   /// MCInstPrinter, if registered.
   MCInstPrinterCtorTy MCInstPrinterCtorFn;
-
+public: // For sneaking in custom code emitters
   /// MCCodeEmitterCtorFn - Construction function for this target's
   /// CodeEmitter, if registered.
   MCCodeEmitterCtorTy MCCodeEmitterCtorFn;
-
+private:
   // Construction functions for the various object formats, if registered.
   COFFStreamerCtorTy COFFStreamerCtorFn = nullptr;
   MachOStreamerCtorTy MachOStreamerCtorFn = nullptr;
