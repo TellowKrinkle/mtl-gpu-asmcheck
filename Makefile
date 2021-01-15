@@ -1,6 +1,6 @@
 CXX ?= clang++
 CXXFLAGS += -fno-rtti -Iinclude -Isrc -std=c++17
-LDFLAGS += -Llib -lLLVM
+LDFLAGS += -L/System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/ -lLLVM
 
 all: mtl-gpu-objdump mtl-gpu-llc mtl-gpu-asmcheck
 
