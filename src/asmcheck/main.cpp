@@ -45,6 +45,9 @@ static cl::opt<char> OptLevel("O",
 	cl::ZeroOrMore,
 	cl::init(' '));
 
+static cl::opt<bool> PrintSchedulingInfo("print-scheduling-info",
+	cl::desc("Prints LLVM scheduling info (do not use if you plan to contribute to Asahi Linux)"));
+
 static void initialize(PassRegistry& registry);
 static std::pair<const Target*, std::unique_ptr<TargetMachine>> getAGX2TargetMachine();
 static void compileModule(LLVMContext& ctx, const Target& target, TargetMachine& tm);
@@ -212,79 +215,81 @@ public:
 				outs() << "<UnrecognizedOperand>";
 			}
 		}
-		for (uint64_t i = outs().tell(); i < pos + 60; i++) {
-			outs().write(' ');
-		}
-		outs() << " ; Size: " << info.getSize() << ", Defs: " << info.getNumDefs();
-		if (info.getNumOperands() != inst.getNumOperands()) {
-			outs() << ", NumOperands: " << info.getNumOperands();
-		}
-		if (info.getSchedClass()) {
-			outs() << ", SchedClass: " << info.getSchedClass();
-		}
-		if (info.TSFlags) {
-			outs() << ", TSFlags: ";
-			outs().write_hex(info.TSFlags);
-		}
-		uint64_t flagsMinusAllocReq = info.Flags;
-		// All AGX2 insts I've seen have these, so invert these flags
-		flagsMinusAllocReq ^= 1ULL << MCID::ExtraSrcRegAllocReq;
-		flagsMinusAllocReq ^= 1ULL << MCID::ExtraDefRegAllocReq;
-		if (flagsMinusAllocReq) {
-			outs() << ", Flags: ";
-			AutoArrayBrackets brackets(__builtin_popcountl(flagsMinusAllocReq));
-#define TEST(x) if (flagsMinusAllocReq & (1ULL << MCID::x)) { brackets.comma(); outs() << #x;  }
-			TEST(Variadic)
-			TEST(HasOptionalDef)
-			TEST(Pseudo)
-			TEST(Return)
-			TEST(Call)
-			TEST(Barrier)
-			TEST(Terminator)
-			TEST(Branch)
-			TEST(IndirectBranch)
-			TEST(Compare)
-			TEST(MoveImm)
-			TEST(MoveReg)
-			TEST(Bitcast)
-			TEST(Select)
-			TEST(DelaySlot)
-			TEST(FoldableAsLoad)
-			TEST(MayLoad)
-			TEST(MayStore)
-			TEST(Predicable)
-			TEST(NotDuplicable)
-			TEST(UnmodeledSideEffects)
-			TEST(Commutable)
-			TEST(ConvertibleTo3Addr)
-			TEST(UsesCustomInserter)
-			TEST(HasPostISelHook)
-			TEST(Rematerializable)
-			TEST(CheapAsAMove)
-			if (flagsMinusAllocReq & (1ULL << MCID::ExtraSrcRegAllocReq)) { brackets.comma(); outs() << "!ExtraSrcRegAllocReq"; }
-			if (flagsMinusAllocReq & (1ULL << MCID::ExtraDefRegAllocReq)) { brackets.comma(); outs() << "!ExtraDefRegAllocReq"; }
-			TEST(RegSequence)
-			TEST(ExtractSubreg)
-			TEST(InsertSubreg)
-			TEST(Convergent)
-			TEST(Add)
-			TEST(Trap)
-#undef TEST
-		}
-		if (info.getNumImplicitUses()) {
-			outs() << ", ImplicitUses: ";
-			AutoArrayBrackets brackets(info.getNumImplicitUses());
-			for (unsigned i = 0; i < info.getNumImplicitUses(); i++) {
-				brackets.comma();
-				outs() << mri.getName(info.getImplicitUses()[i]);
+		if (PrintSchedulingInfo) {
+			for (uint64_t i = outs().tell(); i < pos + 60; i++) {
+				outs().write(' ');
 			}
-		}
-		if (info.getNumImplicitDefs()) {
-			outs() << ", ImplicitDefs: ";
-			AutoArrayBrackets brackets(info.getNumImplicitDefs());
-			for (unsigned i = 0; i < info.getNumImplicitDefs(); i++) {
-				brackets.comma();
-				outs() << mri.getName(info.getImplicitDefs()[i]);
+			outs() << " ; Size: " << info.getSize() << ", Defs: " << info.getNumDefs();
+			if (info.getNumOperands() != inst.getNumOperands()) {
+				outs() << ", NumOperands: " << info.getNumOperands();
+			}
+			if (info.getSchedClass()) {
+				outs() << ", SchedClass: " << info.getSchedClass();
+			}
+			if (info.TSFlags) {
+				outs() << ", TSFlags: ";
+				outs().write_hex(info.TSFlags);
+			}
+			uint64_t flagsMinusAllocReq = info.Flags;
+			// All AGX2 insts I've seen have these, so invert these flags
+			flagsMinusAllocReq ^= 1ULL << MCID::ExtraSrcRegAllocReq;
+			flagsMinusAllocReq ^= 1ULL << MCID::ExtraDefRegAllocReq;
+			if (flagsMinusAllocReq) {
+				outs() << ", Flags: ";
+				AutoArrayBrackets brackets(__builtin_popcountl(flagsMinusAllocReq));
+#define TEST(x) if (flagsMinusAllocReq & (1ULL << MCID::x)) { brackets.comma(); outs() << #x;  }
+				TEST(Variadic)
+				TEST(HasOptionalDef)
+				TEST(Pseudo)
+				TEST(Return)
+				TEST(Call)
+				TEST(Barrier)
+				TEST(Terminator)
+				TEST(Branch)
+				TEST(IndirectBranch)
+				TEST(Compare)
+				TEST(MoveImm)
+				TEST(MoveReg)
+				TEST(Bitcast)
+				TEST(Select)
+				TEST(DelaySlot)
+				TEST(FoldableAsLoad)
+				TEST(MayLoad)
+				TEST(MayStore)
+				TEST(Predicable)
+				TEST(NotDuplicable)
+				TEST(UnmodeledSideEffects)
+				TEST(Commutable)
+				TEST(ConvertibleTo3Addr)
+				TEST(UsesCustomInserter)
+				TEST(HasPostISelHook)
+				TEST(Rematerializable)
+				TEST(CheapAsAMove)
+				if (flagsMinusAllocReq & (1ULL << MCID::ExtraSrcRegAllocReq)) { brackets.comma(); outs() << "!ExtraSrcRegAllocReq"; }
+				if (flagsMinusAllocReq & (1ULL << MCID::ExtraDefRegAllocReq)) { brackets.comma(); outs() << "!ExtraDefRegAllocReq"; }
+				TEST(RegSequence)
+				TEST(ExtractSubreg)
+				TEST(InsertSubreg)
+				TEST(Convergent)
+				TEST(Add)
+				TEST(Trap)
+#undef TEST
+			}
+			if (info.getNumImplicitUses()) {
+				outs() << ", ImplicitUses: ";
+				AutoArrayBrackets brackets(info.getNumImplicitUses());
+				for (unsigned i = 0; i < info.getNumImplicitUses(); i++) {
+					brackets.comma();
+					outs() << mri.getName(info.getImplicitUses()[i]);
+				}
+			}
+			if (info.getNumImplicitDefs()) {
+				outs() << ", ImplicitDefs: ";
+				AutoArrayBrackets brackets(info.getNumImplicitDefs());
+				for (unsigned i = 0; i < info.getNumImplicitDefs(); i++) {
+					brackets.comma();
+					outs() << mri.getName(info.getImplicitDefs()[i]);
+				}
 			}
 		}
 		outs() << "\n";
@@ -356,5 +361,5 @@ static void compileModule(LLVMContext& ctx, const Target& target, TargetMachine&
 		ofile->keep();
 	}
 
-	outs() << "Assembled " << os->tell() << " bytes" << (ofile ? "" : "(use -o to save)") << "\n";
+	outs() << "Assembled " << os->tell() << " bytes" << (ofile ? "" : " (use -o to save)") << "\n";
 }
