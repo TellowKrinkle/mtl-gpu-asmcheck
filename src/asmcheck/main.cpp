@@ -48,6 +48,12 @@ static cl::opt<char> OptLevel("O",
 static cl::opt<bool> PrintSchedulingInfo("print-scheduling-info",
 	cl::desc("Prints LLVM scheduling info (do not use if you plan to contribute to Asahi Linux)"));
 
+static cl::opt<bool> NoRegNames("no-register-names",
+	cl::desc("Prints register numbers instead of names (useful for twiddle input)"));
+
+static cl::opt<std::string> Twiddle("twiddle",
+	cl::desc("Mess with an instruction to see the possible encodings (format: \"opcode,operandidx,low,high\", if any instructions with opcode are seen, show encoding with the operandidx-th operand set to each value between low and high)"));
+
 static void initialize(PassRegistry& registry);
 static std::pair<const Target*, std::unique_ptr<TargetMachine>> getAGX2TargetMachine();
 static void compileModule(LLVMContext& ctx, const Target& target, TargetMachine& tm);
@@ -58,6 +64,9 @@ struct exit_exception : public std::exception {};
 
 Target::MCCodeEmitterCtorTy actualCodeEmitterConstructor;
 MCCodeEmitter *replacementCodeEmitterConstructor(const MCInstrInfo& II, const MCRegisterInfo& MRI, MCContext& Ctx);
+
+int64_t twiddleParams[4] = {-1};
+double twiddleFloat[4] = {0};
 
 int main(int argc, char **argv) {
 	try {
@@ -71,6 +80,16 @@ int main(int argc, char **argv) {
 		initialize(registry);
 
 		cl::ParseCommandLineOptions(argc, argv, "Metal GPU ASM Checker");
+
+		if (!Twiddle.empty()) {
+			StringRef t(Twiddle.getValue());
+			for (int i = 0; i < 4; i++) {
+				auto split = t.split(',');
+				split.first.getAsInteger(0, twiddleParams[i]);
+				split.first.getAsDouble(twiddleFloat[i]);
+				t = split.second;
+			}
+		}
 
 		PassPrinter printer;
 		// registry.enumerateWith(&printer);
@@ -175,13 +194,18 @@ public:
 		}
 	};
 
-	void encodeInstruction(const MCInst& inst_, raw_ostream& os, SmallVectorImpl<MCFixup>& fixups, const MCSubtargetInfo& sti) const override {
-		MCInst inst = inst_;
-		uint64_t pos = outs().tell();
-		outs() << "Encoding Op #" << inst.getOpcode();
-		const MCInstrDesc& info = ii.get(inst.getOpcode());
+	void printRegister(raw_ostream& os, int reg) const {
+		if (NoRegNames) {
+			os << "r" << reg;
+		} else {
+			os << mri.getName(reg);
+		}
+	}
+
+	void descMCInst(raw_ostream& os, const MCInst& inst) const {
+		os << "Op #" << inst.getOpcode();
 		for (int i = 0; i < inst.getNumOperands(); i++) {
-			MCOperand& operand = inst.getOperand(i);
+			const MCOperand& operand = inst.getOperand(i);
 			if (i == 0) {
 				outs() << " ";
 			} else {
@@ -190,7 +214,7 @@ public:
 			if (!operand.isValid()) {
 				outs() << "<InvalidOperand>";
 			} else if (operand.isReg()) {
-				outs() << mri.getName(operand.getReg());
+				printRegister(outs(), operand.getReg());
 			} else if (operand.isImm()) {
 				if ((int64_t)(int16_t)operand.getImm() != operand.getImm()) {
 					// Display large numbers as hex
@@ -215,6 +239,62 @@ public:
 				outs() << "<UnrecognizedOperand>";
 			}
 		}
+	}
+
+	void twiddle(const MCInst& inst, SmallVectorImpl<MCFixup>& fixups, const MCSubtargetInfo& sti) const {
+		int op = (int)twiddleParams[1];
+		if (op >= inst.getNumOperands()) {
+			outs() << "Opcode #" << inst.getOpcode() << " didn't have " << (op + 1) << " operands\n";
+			return;
+		}
+		MCInst mut = inst;
+		SmallVector<char, 32> binout;
+
+		auto doPrint = [&]{
+			uint64_t pos = outs().tell();
+			binout.clear();
+			raw_svector_ostream bos(binout);
+			descMCInst(outs(), mut);
+			actual->encodeInstruction(mut, bos, fixups, sti);
+			bos.str(); // flush
+
+			for (uint64_t i = outs().tell(); i < pos + 40; i++) {
+				outs().write(' ');
+			}
+
+			outs() << " => ";
+			for (uint8_t c : binout) {
+				printHex(outs(), c);
+				outs() << " ";
+			}
+			outs() << "\n";
+		};
+
+		if (mut.getOperand(op).isFPImm()) {
+			mut.getOperand(op).setFPImm(twiddleParams[2]);
+			doPrint();
+			mut.getOperand(op).setFPImm(twiddleParams[3]);
+			doPrint();
+		}
+		for (int64_t i = twiddleParams[2]; i < twiddleParams[3]; i++) {
+			MCOperand& operand = mut.getOperand(op);
+			if (operand.isReg()) {
+				operand.setReg((int)i);
+			} else if (operand.isImm()) {
+				operand.setImm(i);
+			} else {
+				outs() << "Opcode #" << inst.getOpcode() << " operand " << op << "'s type isn't supported for twiddling\n";
+				return;
+			}
+			doPrint();
+		}
+	}
+
+	void encodeInstruction(const MCInst& inst, raw_ostream& os, SmallVectorImpl<MCFixup>& fixups, const MCSubtargetInfo& sti) const override {
+		uint64_t pos = outs().tell();
+		outs() << "Encoding ";
+		descMCInst(outs(), inst);
+		const MCInstrDesc& info = ii.get(inst.getOpcode());
 		if (PrintSchedulingInfo) {
 			for (uint64_t i = outs().tell(); i < pos + 60; i++) {
 				outs().write(' ');
@@ -280,7 +360,7 @@ public:
 				AutoArrayBrackets brackets(info.getNumImplicitUses());
 				for (unsigned i = 0; i < info.getNumImplicitUses(); i++) {
 					brackets.comma();
-					outs() << mri.getName(info.getImplicitUses()[i]);
+					printRegister(outs(), info.getImplicitUses()[i]);
 				}
 			}
 			if (info.getNumImplicitDefs()) {
@@ -288,7 +368,7 @@ public:
 				AutoArrayBrackets brackets(info.getNumImplicitDefs());
 				for (unsigned i = 0; i < info.getNumImplicitDefs(); i++) {
 					brackets.comma();
-					outs() << mri.getName(info.getImplicitDefs()[i]);
+					printRegister(outs(), info.getImplicitDefs()[i]);
 				}
 			}
 		}
@@ -305,6 +385,10 @@ public:
 			outs() << " ";
 		}
 		outs() << "\n";
+
+		if (twiddleParams[0] == inst.getOpcode()) {
+			twiddle(inst, fixups, sti);
+		}
 
 		os << binout;
 	}
