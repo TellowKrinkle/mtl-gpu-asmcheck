@@ -52,7 +52,7 @@ static cl::opt<bool> NoRegNames("no-register-names",
 	cl::desc("Prints register numbers instead of names (useful for twiddle input)"));
 
 static cl::opt<std::string> Twiddle("twiddle",
-	cl::desc("Mess with an instruction to see the possible encodings (format: \"opcode,operandidx,low,high\", if any instructions with opcode are seen, show encoding with the operandidx-th operand set to each value between low and high)"));
+	cl::desc("Mess with an instruction to see the possible encodings (format: \"opcode,operandidx,low,high\", if any instructions with opcode are seen, show encoding with the operandidx-th operand set to each value between low and high)\nReminder: Just because the assembler emits it doesn't mean it's valid, the assembler assumes valid output from the stages before it"));
 
 static cl::opt<std::string> GPU("gpu",
 	cl::desc("GPU to target, available gpus include g10, g10p-b0, g11, g11g-a0, g11g-b0, g11m-a0, g11m-b0, g11p-a0, g11p-b0, g12, g12g-a0, g12m-a0, g12p-a0, g12p-b0, g12x, g13, g13-fullf32, g13g-a0, g13g-b0, g13g-b0-nofullf32, g13p-a0, g13x, g13x-a0"),
