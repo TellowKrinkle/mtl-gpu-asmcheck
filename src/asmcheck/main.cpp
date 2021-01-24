@@ -54,6 +54,10 @@ static cl::opt<bool> NoRegNames("no-register-names",
 static cl::opt<std::string> Twiddle("twiddle",
 	cl::desc("Mess with an instruction to see the possible encodings (format: \"opcode,operandidx,low,high\", if any instructions with opcode are seen, show encoding with the operandidx-th operand set to each value between low and high)"));
 
+static cl::opt<std::string> GPU("gpu",
+	cl::desc("GPU to target, available gpus include g10, g10p-b0, g11, g11g-a0, g11g-b0, g11m-a0, g11m-b0, g11p-a0, g11p-b0, g12, g12g-a0, g12m-a0, g12p-a0, g12p-b0, g12x, g13, g13-fullf32, g13g-a0, g13g-b0, g13g-b0-nofullf32, g13p-a0, g13x, g13x-a0"),
+	cl::init("g13x"));
+
 static void initialize(PassRegistry& registry);
 static std::pair<const Target*, std::unique_ptr<TargetMachine>> getAGX2TargetMachine();
 static void compileModule(LLVMContext& ctx, const Target& target, TargetMachine& tm);
@@ -150,7 +154,7 @@ static std::pair<const Target*, std::unique_ptr<TargetMachine>> getAGX2TargetMac
 
 	// Note: Available processors: g10, g10p-b0, g11, g11g-a0, g11g-b0, g11m-a0, g11m-b0, g11p-a0, g11p-b0, g12, g12g-a0, g12m-a0, g12p-a0, g12p-b0, g12x, g13, g13-fullf32, g13g-a0, g13g-b0, g13g-b0-nofullf32, g13p-a0, g13x, g13x-a0
 
-	std::unique_ptr<TargetMachine> targetMachine(target->createTargetMachine(triple.getTriple(), "g13x", features, opts, None, None, OLvl));
+	std::unique_ptr<TargetMachine> targetMachine(target->createTargetMachine(triple.getTriple(), GPU, features, opts, None, None, OLvl));
 	return {target, std::move(targetMachine)};
 }
 
